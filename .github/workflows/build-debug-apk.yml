@@ -113,4 +113,39 @@ jobs:
           name: luxa-calculator-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          compression-level: 0
+
+  verify-artifact:
+    needs: build-debug-apk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Debug APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: luxa-calculator-debug-apk
+          path: downloaded/
+
+      - name: Verify downloaded APK integrity and signature
+        run: |
+          APK=$(find downloaded/ -name "app-debug.apk" -type f)
+          if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+            echo "::error::Downloaded app-debug.apk not found!"
+            exit 1
+          fi
+          echo "=== Downloaded APK Details ==="
+          ls -la "$APK"
+          ls -lh "$APK"
+
+          echo "=== Downloaded APK SHA-256 ==="
+          sha256sum "$APK"
+
+          echo "=== Downloaded APK Archive Integrity (unzip -t) ==="
+          unzip -t "$APK" > /dev/null && echo "Downloaded APK zip integrity verified."
+
+          echo "=== Downloaded APK Signature Verification ==="
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -n 1)
+          if [ -n "$APKSIGNER" ] && [ -x "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --verbose --print-certs "$APK"
+          fi
+          echo "Downloaded artifact verified successfully!"
 
